@@ -11,13 +11,13 @@ int main(int argc, char **args)
 	Mat img, dstimg;
 	int numSuperPixel, nc, iter;
 	double threshold;
-	string fileName = "../data/dog.png";
+	string fileName = "../data/person.png";
 	
 	if (argc == 1)
 	{
 		// 手动设置参数
 		img = imread(fileName);
-		numSuperPixel = 512;
+		numSuperPixel = 1024;
 		nc = 30;
 		iter = 10;
 		threshold = 1e-2;
@@ -40,7 +40,7 @@ int main(int argc, char **args)
 
 	SLIC slic(img, numSuperPixel, nc, iter, threshold);
 	slic.generateSuperPixel();
-	slic.colour_with_cluster_means(img, dstimg, SLIC::superPixelWithCenters);	
+	slic.colour_with_cluster_means(img, dstimg, superPixelWithCenters);	
 	clock_t end = clock();
 	cout << "run: " << static_cast<double>(end - start) << " ms" << endl;
 
