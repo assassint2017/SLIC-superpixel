@@ -7,18 +7,19 @@
 typedef std::vector<std::vector<double>>  Vecdd;
 typedef std::vector<std::vector<int>> Vecii;
 
+// 绘制模式
+enum drawMode {
+	superPixelOnly,  // 只显示超像素分割结果
+	superPixelWithCenters,  // 显示超像素分割结果以及聚类中心点
+	superPixelWithEdge,  // 显示超像素分割结果以及蔟边缘
+	superPixelWithEdgeAndCenters,  // 显示超像素分割结果、蔟边缘以及聚类中心点
+};
+
+
 class SLIC
 {
 public:
 	
-	// 绘制模式
-	enum drawMode { 
-		superPixelOnly,  // 只显示超像素分割结果
-		superPixelWithCenters,  // 显示超像素分割结果以及聚类中心点
-		superPixelWithEdge,  // 显示超像素分割结果以及蔟边缘
-		superPixelWithEdgeAndCenters,  // 显示超像素分割结果、蔟边缘以及聚类中心点
-	};
-
 	/*
 	@param img : 图像矩阵
 	@param numSuperPixel : 超像素的个数
@@ -36,14 +37,15 @@ public:
 	void colour_with_cluster_means(const cv::Mat &img, cv::Mat &showimg, int flag = 0);
 
 private:
+	
 	cv::Mat labImg;
-	double step;
-	int nc;
-	double ns;
 	int iter;
+	int nc;
+	double step;
+	double ns;
 	double threshold;
 		
-	Vecdd centers;  // 存放聚类的五维向量
+	Vecdd centers;  // 存放聚类中心的五维向量
 	Vecdd distances;  // 存放图像中每一个像素的相似性距离
 	Vecii labels;  // 存放图像中每一个像素属于的聚类中心索引
 	std::vector<int> numLabels;  // 存放每一个聚类中心被分配的像素数量

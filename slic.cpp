@@ -16,7 +16,7 @@ SLIC::SLIC(const Mat &img, int numSuperPixel, int nc, int iter, int threshold)
 	ns = step;
 	this->iter = iter;
 	this->threshold = threshold;
-	
+
 	// 初始化
 	init();
 }
@@ -54,9 +54,11 @@ void SLIC::init()
 			Point centerPoint = findLocalMinimum(Point(j, i));
 
 			// 构成一个五维向量 (L, a, b, x, y)
-			center.push_back(static_cast<double>(labImg.at<Vec3b>(centerPoint.y, centerPoint.x)[0]));
-			center.push_back(static_cast<double>(labImg.at<Vec3b>(centerPoint.y, centerPoint.x)[1]));
-			center.push_back(static_cast<double>(labImg.at<Vec3b>(centerPoint.y, centerPoint.x)[2]));
+			Vec3b temp = labImg.at<Vec3b>(centerPoint.y, centerPoint.x);
+
+			center.push_back(static_cast<double>(temp[0]));
+			center.push_back(static_cast<double>(temp[1]));
+			center.push_back(static_cast<double>(temp[2]));
 			center.push_back(centerPoint.x);
 			center.push_back(centerPoint.y);
 
@@ -69,7 +71,7 @@ void SLIC::init()
 Point SLIC::findLocalMinimum(Point center)
 {
 	Point localMinimum(center.x, center.y);
-	double minG = 1e5;
+	double minG = FLT_MAX;
 
 	// 在3*3的邻域中寻找梯度最小值
 	for (int i = center.x - 1; i < center.x + 2; i++)
@@ -94,7 +96,7 @@ Point SLIC::findLocalMinimum(Point center)
 				minG = g;
 				localMinimum.x = i, localMinimum.y = j;
 			}
-		}	
+		}
 	return localMinimum;
 }
 
@@ -111,13 +113,14 @@ void SLIC::generateSuperPixel()
 
 			for (int i = y - step > 0 ? y - step : 0; (i < y + step) && (i < labImg.rows); i++)
 			{
+				Vec3b *pointer = labImg.ptr<Vec3b>(i);
 				for (int j = x - step > 0 ? x - step : 0; (j < x + step) && j < (labImg.cols); j++)
 				{
 					Point point(j, i);
 
-					double l = labImg.at<Vec3b>(i, j)[0];
-					double a = labImg.at<Vec3b>(i, j)[1];
-					double b = labImg.at<Vec3b>(i, j)[2];
+					double l = pointer[j][0];
+					double a = pointer[j][1];
+					double b = pointer[j][2];
 
 					double distance = computeDis(centerIndex, point, l, a, b);
 					if (distance < distances[i][j])
@@ -131,6 +134,8 @@ void SLIC::generateSuperPixel()
 
 		// 将聚类中心向量保存到临时变量中，而后清零
 		Vecdd oldcenters = centers;
+
+		#pragma omp parallel for
 		for (int i = 0; i < centers.size(); i++)
 		{
 			centers[i][0] = 0;
@@ -143,6 +148,7 @@ void SLIC::generateSuperPixel()
 		// 根据分配结果，重新计算聚类中心的坐标
 		for (int i = 0; i < labImg.rows; i++)
 		{
+			Vec3b *pointer = labImg.ptr<Vec3b>(i);
 			for (int j = 0; j < labImg.cols; j++)
 			{
 				int centerIndex = labels[i][j];
@@ -150,9 +156,9 @@ void SLIC::generateSuperPixel()
 				{
 					numLabels[centerIndex]++;
 
-					centers[centerIndex][0] += static_cast<double>(labImg.at<Vec3b>(i, j)[0]);
-					centers[centerIndex][1] += static_cast<double>(labImg.at<Vec3b>(i, j)[1]);
-					centers[centerIndex][2] += static_cast<double>(labImg.at<Vec3b>(i, j)[2]);
+					centers[centerIndex][0] += static_cast<double>(pointer[j][0]);
+					centers[centerIndex][1] += static_cast<double>(pointer[j][1]);
+					centers[centerIndex][2] += static_cast<double>(pointer[j][2]);
 
 					centers[centerIndex][3] += j;
 					centers[centerIndex][4] += i;
@@ -161,8 +167,9 @@ void SLIC::generateSuperPixel()
 				distances[i][j] = FLT_MAX;
 			}
 		}
-
+		
 		// 对聚类中心进行归一化，得到最终的新聚类中心
+		#pragma omp parallel for
 		for (int i = 0; i < centers.size(); i++)
 		{
 			centers[i][0] /= numLabels[i];
@@ -176,13 +183,15 @@ void SLIC::generateSuperPixel()
 
 		// 计算新老聚类中心之间的平均残差
 		double residual = 0.0;
+		#pragma omp parallel for reduction(+:residual)
 		for (int i = 0; i < centers.size(); i++)
 		{
 			Point point(oldcenters[i][3], oldcenters[i][4]);
 			residual += computeDis(i, point, oldcenters[i][0], oldcenters[i][1], oldcenters[i][2]);
 		}
+		
 		residual /= centers.size();
-		cout << "iter: " << iterIndex <<" residual: " << residual << endl;
+		cout << "iter: " << iterIndex << " residual: " << residual << endl;
 
 		// 如果平均残差小于一定的阈值就提前终止算法
 		if (residual <= threshold)
@@ -193,7 +202,6 @@ void SLIC::generateSuperPixel()
 	}
 
 	// 在完成超像素分割后合并孤立点
-
 	mergeOutliers();
 }
 
@@ -225,7 +233,7 @@ void SLIC::mergeOutliers()
 	{
 		for (int j = 0; j < labImg.cols; j++)
 		{
-			if (whetherProcessed[i][j] == false)
+			if (!whetherProcessed[i][j])
 			{
 				vector<Point> connectedComponent;  // 记录该连通域的点坐标
 				connectedComponent.push_back(Point(j, i));
@@ -265,9 +273,12 @@ void SLIC::mergeOutliers()
 							{
 								if (labels[connectedComponent[k].y][connectedComponent[k].x] != labels[x][y])
 								{
-									adjLabel = labels[x][y];
-									found = true;
-									break;
+									if (labels[connectedComponent[k].y][connectedComponent[k].x] != -1)
+									{
+										adjLabel = labels[x][y];
+										found = true;
+										break;
+									}
 								}
 							}
 						}
@@ -338,9 +349,12 @@ void SLIC::colour_with_cluster_means(const Mat &img, Mat &showimg, int flag)
 	{
 		for (int j = 0; j < img.cols; j++)
 		{
-			showimg.at<Vec3b>(i, j)[0] = colors[labels[i][j]][0];
-			showimg.at<Vec3b>(i, j)[1] = colors[labels[i][j]][1];
-			showimg.at<Vec3b>(i, j)[2] = colors[labels[i][j]][2];	
+			if (labels[i][j] != -1)
+			{
+				showimg.at<Vec3b>(i, j)[0] = colors[labels[i][j]][0];
+				showimg.at<Vec3b>(i, j)[1] = colors[labels[i][j]][1];
+				showimg.at<Vec3b>(i, j)[2] = colors[labels[i][j]][2];
+			}
 		}
 	}
 
@@ -381,8 +395,8 @@ void SLIC::showEdges(Mat &img)
 	Vec3b edgeColor(128, 128, 128);
 
 	// 在8领域内搜索
-	int neX[] = { -1, 0, 1, -1, 1, -1, 0, 1};
-	int neY[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+	int neX[] = { -1, 0, 1, -1, 1, -1, 0, 1 };
+	int neY[] = { -1, -1, -1, 0, 0, 1, 1, 1 };
 
 	/*
 	设置这个变量的主要原因是
@@ -407,7 +421,7 @@ void SLIC::showEdges(Mat &img)
 			int pt = 0;
 			for (int k = 0; k < 8; k++)
 			{
-				if (i + neX[k] >=0 && i + neX[k] < labImg.rows && j + neY[k] >= 0 && j + neY[k] < labImg.cols)
+				if (i + neX[k] >= 0 && i + neX[k] < labImg.rows && j + neY[k] >= 0 && j + neY[k] < labImg.cols)
 					if (whetherEdge[i][j] == false && labels[i][j] != labels[i + neX[k]][j + neY[k]])
 						pt++;
 			}
