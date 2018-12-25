@@ -1,22 +1,73 @@
-ï»¿# æ–‡ä»¶å¼€å§‹
-
-# cmakeçš„æœ€ä½ç‰ˆæœ¬å·ä¸º3.6
+# ÉèÖÃcmake°æ±¾ºÅ
 cmake_minimum_required(VERSION 3.6)
 
-# å»ºç«‹å·¥ç¨‹
+# ÉèÖÃ¹¤³ÌÃû³Æ
 project(SLIC)
 
-# å£°æ˜è¿™ä¸ªå·¥ç¨‹éœ€è¦å¼•ç”¨OpenCVåº“
+# Ìí¼Ó±àÒëÑ¡Ïî
+set(CMAKE_AUTOMOC ON) # ÉèÖÃ×Ô¶¯Éú³ÉmocÎÄ¼ş£¬Ò»¶¨ÒªÉèÖÃ
+set(CMAKE_AUTOUIC ON) # ÉèÖÃuiÎÄ¼ş±»ĞŞ¸Äºó£¬¿ÉÒÔÉú³É¶ÔÓ¦µÄuiÍ·ÎÄ¼ş
+set(CMAKE_AUTORCC ON) # ×Ô¼ºÖ®ºóĞ´µÄ´øÓĞQ_OBJECTÇ°×ºµÄÀà£¬Èç¹ûÃ»ÓĞ±àÒëÑ¡ÏîµÄ»°¾Í»á±¨Á´½Ó´íÎó
+set(CMAKE_PREFIX_PATH "E:/Toolkits/QT/Qt5.12.0/5.12.0/msvc2017_64")
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+# ²éÕÒopencv
 find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
 
-# æ·»åŠ opencvå¤´æ–‡ä»¶ å¯¹åº”çš„ç›®å½•æ˜¯E:\Toolkits\opencv\opencv\build\include\
-# ${å˜é‡å}
-include_directories(. ${OpenCV_INCLUDE_DIRS})
+# ²éÕÒĞèÒªµÄQt¿âÎÄ¼ş£¬×îºÃÃ¿Ò»¸ö¿â¶¼ÒªĞ´£¬QtÒ²»á¸ù¾İÒÀÀµ¹ØÏµ×Ô¶¯Ìí¼Ó
+find_package(Qt5Widgets REQUIRED)  
+find_package(Qt5Core REQUIRED)
+find_package(Qt5Gui REQUIRED)
 
-# ä¸ºå·¥ç¨‹æ·»åŠ æºç¨‹åº
-add_executable(SLIC main.cpp slic.h slic.cpp)
+include_directories(
+	./
+	./Qt
+    ./Slic
+)
 
-#ä¸ºå·¥ç¨‹æ·»åŠ é™æ€é“¾æ¥åº“
-target_link_libraries(SLIC ${OpenCV_LIBS})
+set(Srcs
+	main.cpp
+	Qt/mainwindow.cpp
+	Qt/SlicThread.cpp
+	Slic/slic.cpp
+	)
+    
+set(Hdrs
+	Qt/mainwindow.h
+	Qt/SlicThread.h
+	Slic/slic.h
+	)
 
-# æ–‡ä»¶ç»“æŸ
+set(UIs 
+    Qt/mainwindow.ui
+	)
+
+# Í¨¹ıUiÎÄ¼şÉú³É¶ÔÓ¦µÄÍ·ÎÄ¼ş£¬Ò»¶¨ÒªÌí¼Ó
+qt5_wrap_ui(UI_Files ${UIs})
+
+#½«uiÎÄ¼şºÍÉú³ÉÎÄ¼şÕûÀíÔÚÒ»¸öÎÄ¼ş¼ĞÖĞ£¬·Ç±ØĞë
+source_group("Resources" FILES
+	${UIs}
+	)
+source_group("Generated" FILES
+	${UI_Files}
+	${MOC_Srcs}
+	)
+source_group("Qt" FILES
+	Qt/mainwindow.h
+	Qt/mainwindow.cpp
+	Qt/SlicThread.h
+	Qt/SlicThread.cpp
+	)
+source_group("Slic" FILES
+	Slic/slic.cpp
+	Slic/slic.h
+	)
+
+# ´´½¨¹¤³ÌÎÄ¼ş
+add_executable(${PROJECT_NAME} ${Srcs} ${Hdrs} ${UI_Files})
+
+# Ìí¼Ó¾²Ì¬Á´½Ó¿â
+target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Core Qt5::Gui)
+target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
