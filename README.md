@@ -8,4 +8,4 @@ during writing the code, https://github.com/PSMM/SLIC-Superpixels helps me a lot
 
 and I write an interface to facilitate tuning parameters and display the result
 **here is the interface**
-<div align=center><img src="https://github.com/assassint2017/SLIC-superpixel/blob/master/data/result.png"alt="结果展示图"/></div>
+<div align=center><img src="https://github.com/assassint2017/SLIC-superpixel/blob/master/data/Qt5.png"alt="结果展示图"/></div>
